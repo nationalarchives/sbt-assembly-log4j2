@@ -17,6 +17,8 @@ class Log4j2MergePluginSpec extends AnyFlatSpec {
   val moduleCoordinate: ModuleCoordinate = ModuleCoordinate("test.org", "name", "version")
   val src = "/tmp"
   val target = "/tmp"
+  private val testDat = "test.dat"
+  private val test2Dat = "test2.dat"
 
   def createWatchService(): WatchServiceAdapter = {
     val watchService = FileSystems.getDefault.newWatchService()
@@ -26,13 +28,15 @@ class Log4j2MergePluginSpec extends AnyFlatSpec {
     watchServiceAdapter
   }
 
+  private def library(name: String) = {
+    val bytes = Source.fromResource(name).map(_.toByte).toArray
+    Library(moduleCoordinate, src, target, () => new ByteArrayInputStream(bytes))
+  }
+
   "log4j2MergeStrategy" should "create and delete temporary files" in {
     val watchServiceAdapter = createWatchService()
 
-    val bytes = Source.fromResource("test.dat").map(_.toByte).toArray
-    val library = Library(moduleCoordinate, src, target, () => new ByteArrayInputStream(bytes))
-
-    val input = Vector(library, library)
+    val input = Vector(library(testDat), library(test2Dat))
     log4j2MergeStrategy(input)
 
     val events = watchServiceAdapter.pollEvents()
@@ -47,26 +51,21 @@ class Log4j2MergePluginSpec extends AnyFlatSpec {
   }
 
   "log4j2MergeStrategy" should "merge two of the same dat file into one" in {
-    val bytes = Source.fromResource("test.dat").map(_.toByte).toArray
-    val library = Library(moduleCoordinate, src, target, () => new ByteArrayInputStream(bytes))
-
-    val input = Vector(library, library)
+    val lib = library(testDat)
+    val input = Vector(lib, lib)
     val response = log4j2MergeStrategy(input)
     val responseVector = response match {
       case Left(err)    => throw new Exception(err)
       case Right(value) => value
     }
     responseVector.size should equal(1)
-    responseVector.head.stream().readAllBytes().length should equal(bytes.length)
+    responseVector.head.stream().readAllBytes().length should equal(lib.stream().readAllBytes().length)
   }
 
   "log4j2MergeStrategy" should "merge different dat files into one" in {
-    def library(name: String) = {
-      val bytes = Source.fromResource(name).map(_.toByte).toArray
-      Library(moduleCoordinate, src, target, () => new ByteArrayInputStream(bytes))
-    }
-    val libraryOne = library("test.dat")
-    val libraryTwo = library("test2.dat")
+
+    val libraryOne = library(testDat)
+    val libraryTwo = library(test2Dat)
 
     val input = Vector(libraryOne, libraryTwo)
     val response = log4j2MergeStrategy(input)
@@ -75,7 +74,15 @@ class Log4j2MergePluginSpec extends AnyFlatSpec {
       case Right(value) => value
     }
     responseVector.size should equal(1)
-    responseVector.head.stream().readAllBytes().length > libraryOne.stream().readAllBytes().length
-    responseVector.head.stream().readAllBytes().length > libraryTwo.stream().readAllBytes().length
+    val responseFileSize = responseVector.head.stream().readAllBytes().length
+    responseFileSize > libraryOne.stream().readAllBytes().length should equal(true)
+    responseFileSize > libraryTwo.stream().readAllBytes().length should equal(true)
+  }
+
+  "log4j2MergeStrategy" should "return an error if there is an error merging the files" in {
+    val input = library("invalid")
+    val response = log4j2MergeStrategy(Vector(input))
+
+    response.isLeft should be(true)
   }
 }
