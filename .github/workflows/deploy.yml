@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
-    uses: nationalarchives/dr2-github-actions/.github/workflows/sbt_release.yml@main
+    uses: nationalarchives/dr2-github-actions/.github/workflows/sbt_release.yml@d363fe45d8eea14d3a5271f20fc26dba6b14304c
     with:
       library-name: "sbt-assembly log4j2 plugin"
     secrets:

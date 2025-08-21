@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   test:
-    uses: nationalarchives/dr2-github-actions/.github/workflows/dr2_test.yml@main
+    uses: nationalarchives/dr2-github-actions/.github/workflows/dr2_test.yml@d363fe45d8eea14d3a5271f20fc26dba6b14304c
     with:
       repo-name: sbt-assembly-log4j2
       test-command: sbt scalafmtCheckAll test scripted
